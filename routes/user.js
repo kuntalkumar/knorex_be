@@ -3,13 +3,12 @@ const User = require('../models/User');
 
 const router = express.Router();
 
-
-// register route here the user listed on user table 
+// Register route to add a new user to the user table
 router.post('/', async (req, res) => {
   const { firstName, lastName, email, password } = req.body;
 
   try {
-   // In future if need that i can put my hashed password here 
+    // You can hash the password here if needed in the future
     const newUser = new User({ firstName, lastName, email, password });
     await newUser.save();
     
@@ -19,17 +18,45 @@ router.post('/', async (req, res) => {
   }
 });
 
-// here in this route i can get all user
+// Route to get all users with optional sorting, filtering, and searching
 router.get('/alluser', async (req, res) => {
   try {
-    const users = await User.find();
+    // Extract query parameters for sorting, filtering, and searching
+    const { sortBy, order = 'asc', firstName, lastName, email, search } = req.query;
+
+    // Initialize filter and sort objects
+    let filter = {};
+    let sort = {};
+
+    // Filtering logic
+    if (firstName) filter.firstName = firstName;
+    if (lastName) filter.lastName = lastName;
+    if (email) filter.email = email;
+
+    // Case-insensitive search logic (using regex)
+    if (search) {
+      filter.$or = [
+        { firstName: new RegExp(search, 'i') },
+        { lastName: new RegExp(search, 'i') },
+        { email: new RegExp(search, 'i') },
+      ];
+    }
+
+    // Sorting logic
+    if (sortBy) {
+      sort[sortBy] = order === 'desc' ? -1 : 1;
+    }
+
+    // Fetch filtered, sorted, and searched users
+    const users = await User.find(filter).sort(sort);
+
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// here in can update my user by help of that particular id
+// Route to update a user by their ID
 router.put('/edit/:id', async (req, res) => {
   const { firstName, lastName, email, password } = req.body;
 
@@ -39,7 +66,8 @@ router.put('/edit/:id', async (req, res) => {
 
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
-    // if (email) user.email = email; // email i will not update 
+    // Uncomment the line below if you want to allow updating the email
+    // if (email) user.email = email;
     if (password) user.password = password;
 
     await user.save();
@@ -49,8 +77,7 @@ router.put('/edit/:id', async (req, res) => {
   }
 });
 
-// here in this route i can delete a user by help of delete function
-
+// Route to delete a user by their ID
 router.delete('/delete/:id', async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
@@ -61,5 +88,6 @@ router.delete('/delete/:id', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-// export my router file to the index.js
+
+// Export the router for use in index.js
 module.exports = router;
